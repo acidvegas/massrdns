@@ -50,6 +50,12 @@ The file should contain one DNS server per line, e.g.:
 
 The input defaults to port 53 if no port is specified.
 
+### Todo
+- Colored console output for vanity
+- Preview gifs
+- Pull from public servers..
+- Addition lookups beyond PTR?
+
 ___
 
 ###### Mirrors
