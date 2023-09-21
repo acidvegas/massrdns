@@ -2,7 +2,7 @@
 
 ## Reverse DNS Lookup Tool
 
-This tool provides an efficient way to perform reverse DNS lookups on IP addresses, especially useful for large IP ranges. It uses concurrent workers and distributes the work among them to achieve faster results.
+This tool provides an efficient way to perform reverse DNS lookups on IP addresses, especially useful for large IP ranges. It uses concurrent workers and distributes the work among them to achieve faster results. Each request will randomly rotate betweeen the supplied DNS servers to split the load of a large CDIR across many DNS servers.
 
 ### Building the Project
 
@@ -35,7 +35,7 @@ Optional arguments:
 Example:
 
 ```
-./rdns_lookup -cidr "192.168.0.0/24" -dnsfile "dns_servers.txt"
+./massrdns -cidr "0.0.0.0/0" -dnsfile "dns_servers.txt"
 ```
 
 ### DNS Servers File Format
@@ -43,9 +43,12 @@ Example:
 The file should contain one DNS server per line, e.g.:
 
 ```
-8.8.8.8:53
-1.1.1.1:53
+8.8.8.8
+1.1.1.1
+4.23.54.222:9001
 ```
+
+The input defaults to port 53 if no port is specified.
 
 ___
 
