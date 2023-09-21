@@ -17,6 +17,7 @@ import (
 var dnsServers []string
 var failureCounts = make(map[string]int)
 var showErrors bool
+var inProgressIPs sync.Map
 
 func loadDNSServersFromFile(filePath string) ([]string, error) {
 	var servers []string
@@ -145,6 +146,12 @@ func worker(cidr *net.IPNet, resultsChan chan string) {
 			break
 		}
 
+		_, alreadyProcessing := inProgressIPs.LoadOrStore(ip.String(), true)
+		if alreadyProcessing {
+			continue
+		}
+		defer inProgressIPs.Delete(ip.String())
+
 		triedServers := make(map[string]bool)
 		retries := 10
 		success := false
@@ -216,14 +223,14 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	subnets, err := splitCIDR(cidr, concurrency*10) // Create more subnets than workers
+	subnets, err := splitCIDR(cidr, concurrency*10)
 	if err != nil {
 		fmt.Printf("Error splitting CIDR: %s\n", err)
 		os.Exit(1)
 	}
 
 	if len(subnets) < concurrency {
-		concurrency = len(subnets) // Limit concurrency to number of subnets
+		concurrency = len(subnets)
 	}
 
 	cidrChan := make(chan *net.IPNet, len(subnets))
