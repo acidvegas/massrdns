@@ -77,7 +77,7 @@ func reverseDNSLookup(ip string, server string) (string, error) {
 	if len(names) == 0 {
 		return fmt.Sprintf("%s | %-18s | No PTR records", time.Now().Format("03:04:05 PM"), server), nil
 	}
-	return fmt.Sprintf("%s | %s | %-18s", time.Now().Format("03:04:05 PM"), server, names[0]), nil
+	return fmt.Sprintf("%s | %-18s | %s", time.Now().Format("03:04:05 PM"), server, names[0]), nil
 }
 
 func isNetworkError(err error) bool {
