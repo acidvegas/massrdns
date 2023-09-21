@@ -1,8 +1,7 @@
 # MASSRDNS
 
 ## Reverse DNS Lookup Tool
-
-This tool provides an efficient way to perform reverse DNS lookups on IP addresses, especially useful for large IP ranges. It uses concurrent workers and distributes the work among them to achieve faster results. Each request will randomly rotate betweeen the supplied DNS servers to split the load of a large CDIR across many DNS servers.
+This Reverse DNS Lookup Tool is a sophisticated utility designed to perform reverse DNS lookups on large IP ranges efficiently. Built with concurrency in mind, it leverages multiple goroutines to expedite the process, making it highly scalable and performant. The tool utilizes a list of DNS servers, effectively load balancing the DNS queries across them. This not only distributes the request load but also provides redundancy; if one server fails or is slow, the tool can switch to another. Recognizing the real-world imperfections of network systems, the tool is intelligent enough to handle DNS server failures. After a certain threshold of consecutive failures, it automatically removes the faulty server from the list, ensuring that runtime is not bogged down by consistent non-performers. Furthermore, in the case of lookup failures due to network issues, the tool retries the lookup using different servers. This ensures that transient errors don't lead to missed lookups, enhancing the reliability of the results.
 
 ### Building the Project
 
