@@ -16,6 +16,7 @@ import (
 
 var dnsServers []string
 var failureCounts = make(map[string]int)
+var showErrors bool
 
 func loadDNSServersFromFile(filePath string) ([]string, error) {
 	var servers []string
@@ -61,7 +62,7 @@ func reverseDNSLookup(ip string, server string) (string, error) {
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := net.Dialer{}
-			return d.DialContext(ctx, network, server)
+			return d.DialContext(ctx, "udp", server)
 		},
 	}
 
@@ -70,13 +71,13 @@ func reverseDNSLookup(ip string, server string) (string, error) {
 		if isNetworkError(err) {
 			return "", err
 		}
-		return fmt.Sprintf("%s | %s | Error: %s", time.Now().Format("03:04:05 PM"), server, err), nil
+		return "", err
 	}
 
 	if len(names) == 0 {
-		return fmt.Sprintf("%s | %s | No PTR records", time.Now().Format("03:04:05 PM"), server), nil
+		return fmt.Sprintf("%s | %-18s | No PTR records", time.Now().Format("03:04:05 PM"), server), nil
 	}
-	return fmt.Sprintf("%s | %s | %s", time.Now().Format("03:04:05 PM"), server, names[0]), nil
+	return fmt.Sprintf("%s | %s | %-18s", time.Now().Format("03:04:05 PM"), server, names[0]), nil
 }
 
 func isNetworkError(err error) bool {
@@ -108,6 +109,8 @@ func splitCIDR(cidr string, parts int) ([]*net.IPNet, error) {
 	if err != nil {
 		return nil, err
 	}
+	startIP := make(net.IP, len(ip))
+	copy(startIP, ip)
 
 	maskSize, _ := ipNet.Mask.Size()
 
@@ -126,10 +129,11 @@ func splitCIDR(cidr string, parts int) ([]*net.IPNet, error) {
 	var subnets []*net.IPNet
 	for i := 0; i < parts; i++ {
 		subnets = append(subnets, &net.IPNet{
-			IP:   ip,
+			IP:   make(net.IP, len(startIP)),
 			Mask: net.CIDRMask(newMaskSize, 32),
 		})
-		incrementIPBy(ip, 1<<uint(32-newMaskSize))
+		copy(subnets[i].IP, startIP)
+		incrementIPBy(startIP, 1<<uint(32-newMaskSize))
 	}
 
 	return subnets, nil
@@ -153,26 +157,31 @@ func worker(cidr *net.IPNet, resultsChan chan string) {
 
 			result, err := reverseDNSLookup(ip.String(), randomServer)
 
-			// Check for network errors
-			if err != nil && isNetworkError(err) {
-				failureCounts[randomServer]++
-				if failureCounts[randomServer] > 10 {
-					dnsServers = removeFromList(dnsServers, randomServer)
-					delete(failureCounts, randomServer)
+			if err != nil {
+				if showErrors {
+					resultsChan <- fmt.Sprintf("%s | %-18s | Error: %s", time.Now().Format("03:04:05 PM"), randomServer, err)
+				}
+
+				if isNetworkError(err) {
+					failureCounts[randomServer]++
+					if failureCounts[randomServer] > 10 {
+						dnsServers = removeFromList(dnsServers, randomServer)
+						delete(failureCounts, randomServer)
+					}
 				}
 
 				triedServers[randomServer] = true
 				retries--
 				continue
-			} else if err == nil {
+			} else {
 				resultsChan <- result
 				success = true
 				break
 			}
 		}
 
-		if !success {
-			resultsChan <- fmt.Sprintf("%s | %s | Max retries reached", time.Now().Format("03:04:05 PM"), ip)
+		if !success && showErrors {
+			resultsChan <- fmt.Sprintf("%s | %-18s | Max retries reached", time.Now().Format("03:04:05 PM"), ip)
 		}
 	}
 }
@@ -185,6 +194,7 @@ func main() {
 	flag.StringVar(&cidr, "cidr", "", "IP address CIDR to perform reverse DNS lookup")
 	flag.IntVar(&concurrency, "concurrency", 10, "Number of concurrent workers for reverse DNS lookup")
 	flag.StringVar(&dnsFile, "dnsfile", "", "Path to the file containing DNS servers (one per line)")
+	flag.BoolVar(&showErrors, "errors", false, "Display errors in the output") // New flag
 	flag.Parse()
 
 	if cidr == "" || dnsFile == "" {
