@@ -32,6 +32,7 @@ The tool requires two main arguments:
 Optional arguments:
 
 - `-concurrency`: The number of concurrent workers for reverse DNS lookup. Default is 10.
+- `-errors`: Allow showing errors for debugging purposes
 
 Example:
 
